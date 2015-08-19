@@ -212,6 +212,10 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
             // display.
 
             int hour = mCalendar.get(Calendar.HOUR);
+            if (hour == 0) {
+                hour = 12;
+            }
+
             int minute = mCalendar.get(Calendar.MINUTE);
             int second = mCalendar.get(Calendar.SECOND);
 
