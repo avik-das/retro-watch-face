@@ -29,6 +29,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.Message;
+import android.support.annotation.DrawableRes;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.view.SurfaceHolder;
@@ -65,8 +66,10 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
         Calendar mCalendar;
 
         // graphic objects
-        Bitmap mBackgroundBitmap;
-        Bitmap mBackgroundScaledBitmap;
+        Bitmap mBackgroundBitmapDay;
+        Bitmap mBackgroundBitmapNight;
+        Bitmap mBackgroundScaledBitmapDay;
+        Bitmap mBackgroundScaledBitmapNight;
         Bitmap mFontBitmap;
         Paint ambientBackgroundPaint;
 
@@ -85,10 +88,14 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
 
             Resources resources = EightBitWatchFace.this.getResources();
 
-            // load the background image
-            Drawable backgroundDrawable = resources.getDrawable(R.drawable.bg, null);
-            assert backgroundDrawable != null;
-            mBackgroundBitmap = ((BitmapDrawable) backgroundDrawable).getBitmap();
+            // load the background images
+            Drawable backgroundDrawableDay = resources.getDrawable(R.drawable.bg_mario_day, null);
+            assert backgroundDrawableDay != null;
+            mBackgroundBitmapDay = ((BitmapDrawable) backgroundDrawableDay).getBitmap();
+
+            Drawable backgroundDrawableNight = resources.getDrawable(R.drawable.bg_mario_night, null);
+            assert backgroundDrawableNight != null;
+            mBackgroundBitmapNight = ((BitmapDrawable) backgroundDrawableNight).getBitmap();
 
             // load the font image
             Drawable fontDrawable = resources.getDrawable(R.drawable.font, null);
@@ -153,13 +160,26 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
 
         @Override
         public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-            if (mBackgroundScaledBitmap == null ||
-                    mBackgroundScaledBitmap.getWidth() != width ||
-                    mBackgroundScaledBitmap.getHeight() != height) {
+            if (mBackgroundScaledBitmapDay == null ||
+                    mBackgroundScaledBitmapDay.getWidth() != width ||
+                    mBackgroundScaledBitmapDay.getHeight() != height) {
                 // All of the below assumes a 1:1 aspect ratio. In the future, we may want to crop.
 
-                mBackgroundScaledBitmap = Bitmap.createScaledBitmap(
-                        mBackgroundBitmap,
+                mBackgroundScaledBitmapDay = Bitmap.createScaledBitmap(
+                        mBackgroundBitmapDay,
+                        width,
+                        height,
+                        /* filter = */ false
+                );
+            }
+
+            if (mBackgroundScaledBitmapNight == null ||
+                    mBackgroundScaledBitmapNight.getWidth() != width ||
+                    mBackgroundScaledBitmapNight.getHeight() != height) {
+                // All of the below assumes a 1:1 aspect ratio. In the future, we may want to crop.
+
+                mBackgroundScaledBitmapNight = Bitmap.createScaledBitmap(
+                        mBackgroundBitmapNight,
                         width,
                         height,
                         /* filter = */ false
@@ -198,7 +218,16 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
         }
 
         private void drawInteractiveMode(Canvas canvas, int width) {
-            canvas.drawBitmap(mBackgroundScaledBitmap, 0, 0, null);
+            int hour = mCalendar.get(Calendar.HOUR_OF_DAY);
+
+            boolean isDay = hour >= 6 && hour < 18;
+            canvas.drawBitmap(
+                    isDay ? mBackgroundScaledBitmapDay : mBackgroundScaledBitmapNight,
+                    0,
+                    0,
+                    null
+            );
+
             drawDigits(canvas, width);
         }
 
