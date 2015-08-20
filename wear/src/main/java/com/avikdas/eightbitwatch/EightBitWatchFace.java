@@ -29,19 +29,32 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.Message;
-import android.support.annotation.DrawableRes;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.view.SurfaceHolder;
 
 import java.lang.ref.WeakReference;
 import java.util.Calendar;
+import java.util.Random;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 public class EightBitWatchFace extends CanvasWatchFaceService {
     private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.SECONDS.toMillis(1);
     private static final int MSG_UPDATE_TIME = 0;
+
+    // NOTE: These two arrays must stay in sync, with corresponding indices pointing to the day and
+    // night versions of the same background respectively (even if they're the same).
+
+    private static final int[] BACKGROUNDS_DAY = {
+            R.drawable.bg_mario_day,
+            R.drawable.bg_mega_man_day
+    };
+
+    private static final int[] BACKGROUNDS_NIGHT = {
+            R.drawable.bg_mario_night,
+            R.drawable.bg_mega_man_night
+    };
 
     @Override
     public Engine onCreateEngine() {
@@ -64,12 +77,15 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
         boolean mAmbient;
 
         Calendar mCalendar;
+        Random mRandom = new Random();
+        int mCurrentBackgroundIndex;
 
         // graphic objects
-        Bitmap mBackgroundBitmapDay;
-        Bitmap mBackgroundBitmapNight;
-        Bitmap mBackgroundScaledBitmapDay;
-        Bitmap mBackgroundScaledBitmapNight;
+        Bitmap[] mBackgroundBitmapsDay;
+        Bitmap[] mBackgroundBitmapsNight;
+        Bitmap[] mBackgroundScaledBitmapsDay;
+        Bitmap[] mBackgroundScaledBitmapsNight;
+
         Bitmap mFontBitmap;
         Paint ambientBackgroundPaint;
 
@@ -89,13 +105,7 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
             Resources resources = EightBitWatchFace.this.getResources();
 
             // load the background images
-            Drawable backgroundDrawableDay = resources.getDrawable(R.drawable.bg_mario_day, null);
-            assert backgroundDrawableDay != null;
-            mBackgroundBitmapDay = ((BitmapDrawable) backgroundDrawableDay).getBitmap();
-
-            Drawable backgroundDrawableNight = resources.getDrawable(R.drawable.bg_mario_night, null);
-            assert backgroundDrawableNight != null;
-            mBackgroundBitmapNight = ((BitmapDrawable) backgroundDrawableNight).getBitmap();
+            loadBackgroundBitmaps(resources);
 
             // load the font image
             Drawable fontDrawable = resources.getDrawable(R.drawable.font, null);
@@ -109,6 +119,26 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
             // allocate a Calendar instance to calculate the local time using the UTC time and the
             // time zone
             mCalendar = Calendar.getInstance();
+
+            // start off with a random background
+            pickRandomBackground();
+        }
+
+        private void loadBackgroundBitmaps(Resources resources) {
+            mBackgroundBitmapsDay = new Bitmap[BACKGROUNDS_DAY.length];
+            mBackgroundBitmapsNight = new Bitmap[BACKGROUNDS_DAY.length];
+            mBackgroundScaledBitmapsDay = new Bitmap[BACKGROUNDS_DAY.length];
+            mBackgroundScaledBitmapsNight = new Bitmap[BACKGROUNDS_DAY.length];
+
+            for (int i = 0; i < BACKGROUNDS_DAY.length; i++) {
+                Drawable backgroundDrawableDay = resources.getDrawable(BACKGROUNDS_DAY[i], null);
+                assert backgroundDrawableDay != null;
+                mBackgroundBitmapsDay[i] = ((BitmapDrawable) backgroundDrawableDay).getBitmap();
+
+                Drawable backgroundDrawableNight = resources.getDrawable(BACKGROUNDS_NIGHT[i], null);
+                assert backgroundDrawableNight != null;
+                mBackgroundBitmapsNight[i] = ((BitmapDrawable) backgroundDrawableNight).getBitmap();
+            }
         }
 
         @Override
@@ -126,6 +156,7 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
 
                 // Update time zone in case it changed while we weren't visible.
                 mCalendar.setTimeZone(TimeZone.getDefault());
+                pickRandomBackground();
             } else {
                 unregisterReceiver();
             }
@@ -160,30 +191,35 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
 
         @Override
         public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-            if (mBackgroundScaledBitmapDay == null ||
-                    mBackgroundScaledBitmapDay.getWidth() != width ||
-                    mBackgroundScaledBitmapDay.getHeight() != height) {
-                // All of the below assumes a 1:1 aspect ratio. In the future, we may want to crop.
+            for (int i = 0; i < mBackgroundBitmapsDay.length; i++) {
+                Bitmap scaledBitmapDay = mBackgroundScaledBitmapsDay[i];
 
-                mBackgroundScaledBitmapDay = Bitmap.createScaledBitmap(
-                        mBackgroundBitmapDay,
-                        width,
-                        height,
-                        /* filter = */ false
-                );
-            }
+                if (scaledBitmapDay == null ||
+                        scaledBitmapDay.getWidth() != width ||
+                        scaledBitmapDay.getHeight() != height) {
+                    // All of the below assumes a 1:1 aspect ratio. In the future, we may want to crop.
 
-            if (mBackgroundScaledBitmapNight == null ||
-                    mBackgroundScaledBitmapNight.getWidth() != width ||
-                    mBackgroundScaledBitmapNight.getHeight() != height) {
-                // All of the below assumes a 1:1 aspect ratio. In the future, we may want to crop.
+                    mBackgroundScaledBitmapsDay[i] = Bitmap.createScaledBitmap(
+                            mBackgroundBitmapsDay[i],
+                            width,
+                            height,
+                            /* filter = */ false
+                    );
+                }
 
-                mBackgroundScaledBitmapNight = Bitmap.createScaledBitmap(
-                        mBackgroundBitmapNight,
-                        width,
-                        height,
-                        /* filter = */ false
-                );
+                Bitmap scaledBitmapNight = mBackgroundScaledBitmapsNight[i];
+                if (scaledBitmapNight == null ||
+                        scaledBitmapNight.getWidth() != width ||
+                        scaledBitmapNight.getHeight() != height) {
+                    // All of the below assumes a 1:1 aspect ratio. In the future, we may want to crop.
+
+                    mBackgroundScaledBitmapsNight[i] = Bitmap.createScaledBitmap(
+                            mBackgroundBitmapsNight[i],
+                            width,
+                            height,
+                            /* filter = */ false
+                    );
+                }
             }
 
             super.onSurfaceChanged(holder, format, width, height);
@@ -194,12 +230,21 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
             super.onAmbientModeChanged(inAmbientMode);
             if (mAmbient != inAmbientMode) {
                 mAmbient = inAmbientMode;
+
+                if (!mAmbient) {
+                    pickRandomBackground();
+                }
+
                 invalidate();
             }
 
             // Whether the timer should be running depends on whether we're visible (as well as
             // whether we're in ambient mode), so we may need to start or stop the timer.
             updateTimer();
+        }
+
+        private void pickRandomBackground() {
+            mCurrentBackgroundIndex = mRandom.nextInt(BACKGROUNDS_DAY.length);
         }
 
         @Override
@@ -221,8 +266,11 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
             int hour = mCalendar.get(Calendar.HOUR_OF_DAY);
 
             boolean isDay = hour >= 6 && hour < 18;
+            Bitmap[] backgroundBitmapArray =
+                    isDay ? mBackgroundScaledBitmapsDay : mBackgroundScaledBitmapsNight;
+
             canvas.drawBitmap(
-                    isDay ? mBackgroundScaledBitmapDay : mBackgroundScaledBitmapNight,
+                    backgroundBitmapArray[mCurrentBackgroundIndex],
                     0,
                     0,
                     null
