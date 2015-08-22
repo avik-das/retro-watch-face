@@ -48,12 +48,16 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
 
     private static final int[] BACKGROUNDS_DAY = {
             R.drawable.bg_mario_day,
-            R.drawable.bg_mega_man_day
+            R.drawable.bg_mega_man_day,
+            R.drawable.bg_pokemon_day,
+            R.drawable.bg_zelda_day
     };
 
     private static final int[] BACKGROUNDS_NIGHT = {
             R.drawable.bg_mario_night,
-            R.drawable.bg_mega_man_night
+            R.drawable.bg_mega_man_night,
+            R.drawable.bg_pokemon_night,
+            R.drawable.bg_zelda_night
     };
 
     @Override
