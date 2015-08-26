@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">Eight Bit Watch</string>
+    <string name="title_activity_eight_bit_companion">EightBitCompanionActivity</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="settings_day_night_header">Force day or night mode</string>
+    <string name="settings_day_mode">Force day-only mode</string>
+    <string name="settings_night_mode">Force night-only mode</string>
+    <string name="settings_day_night_auto_mode">Automatically choose based on time</string>
+    <string name="settings_checked">Checked</string>
 </resources>

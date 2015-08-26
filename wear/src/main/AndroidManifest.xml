@@ -17,6 +17,12 @@
             android:name=".EightBitWatchFace"
             android:label="@string/eightbit_watchface_name"
             android:permission="android.permission.BIND_WALLPAPER" >
+
+            <!-- companion configuration activity -->
+            <meta-data
+                android:name="com.google.android.wearable.watchface.companionConfigurationActivity"
+                android:value="com.avikdas.eightbitwatch.CONFIG_DIGITAL" />
+
             <meta-data
                 android:name="android.service.wallpaper"
                 android:resource="@xml/watch_face" />
