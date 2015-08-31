@@ -13,6 +13,7 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.wearable.CapabilityApi;
 import com.google.android.gms.wearable.CapabilityInfo;
+import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.MessageApi;
 import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.Wearable;
@@ -28,6 +29,7 @@ public class EightBitCompanionActivityFragment extends Fragment implements
     private static final String LOG_TAG = "ConfigurationFragment";
     private static final String EIGHTBIT_WATCH_FACE_CAPABILITY_NAME = "eightbit-watch-face";
     private static final String EIGHTBIT_WATCH_FACE_CONFIG_PATH = "/eightbit-watch-face/config";
+    private static final String KEY_DAY_NIGHT_MODE = "day-night-mode";
 
     private GoogleApiClient mGoogleApiClient;
     private String mPeerId;
@@ -86,7 +88,7 @@ public class EightBitCompanionActivityFragment extends Fragment implements
             @Override
             public void onClick(View v) {
                 int index = mDayNightModeButtonGroup.indexOfChild(v);
-                mDayNightMode = DayNightMode.values()[index];
+                updateDayNightMode(DayNightMode.values()[index]);
                 renderDayNightCheck();
             }
         };
@@ -109,6 +111,14 @@ public class EightBitCompanionActivityFragment extends Fragment implements
                     mDayNightMode.ordinal() == i ? View.VISIBLE : View.INVISIBLE
             );
         }
+    }
+
+    private void updateDayNightMode(DayNightMode newMode) {
+        mDayNightMode = newMode;
+
+        DataMap config = new DataMap();
+        config.putInt(KEY_DAY_NIGHT_MODE, mDayNightMode.ordinal());
+        sendConfigUpdate(config);
     }
 
     private void pickPeer() {
@@ -157,26 +167,32 @@ public class EightBitCompanionActivityFragment extends Fragment implements
             log("Unable to find peer with required capability");
         } else {
             log("Found peer: " + mPeerId);
+        }
+    }
 
-            // TODO: refactor
-            Wearable.MessageApi.sendMessage(
-                    mGoogleApiClient,
-                    mPeerId,
-                    EIGHTBIT_WATCH_FACE_CONFIG_PATH,
-                    new byte[]{0x68, 0x65, 0x6c, 0x6c, 0x6f} /* Hello */
-            ).setResultCallback(
-                    new ResultCallback<MessageApi.SendMessageResult>() {
-                        @Override
-                        public void onResult(MessageApi.SendMessageResult sendMessageResult) {
-                            if (sendMessageResult.getStatus().isSuccess()) {
-                                log("Message sent");
-                            } else {
-                                log("Message failed to send");
-                            }
+    private void sendConfigUpdate(DataMap data) {
+        if (mPeerId == null) {
+            return;
+        }
+
+        byte[] rawData = data.toByteArray();
+        Wearable.MessageApi.sendMessage(
+                mGoogleApiClient,
+                mPeerId,
+                EIGHTBIT_WATCH_FACE_CONFIG_PATH,
+                rawData
+        ).setResultCallback(
+                new ResultCallback<MessageApi.SendMessageResult>() {
+                    @Override
+                    public void onResult(MessageApi.SendMessageResult sendMessageResult) {
+                        if (sendMessageResult.getStatus().isSuccess()) {
+                            log("Message sent");
+                        } else {
+                            log("Message failed to send");
                         }
                     }
-            );
-        }
+                }
+        );
     }
 
     @Override
