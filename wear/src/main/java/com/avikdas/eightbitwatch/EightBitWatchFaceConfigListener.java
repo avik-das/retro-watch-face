@@ -1,5 +1,7 @@
 package com.avikdas.eightbitwatch;
 
+import android.content.Intent;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.google.android.gms.wearable.DataMap;
@@ -11,6 +13,9 @@ public class EightBitWatchFaceConfigListener
     private static final String LOG_TAG = "ConfigListener";
     private static final String EIGHTBIT_WATCH_FACE_CONFIG_PATH = "/eightbit-watch-face/config";
 
+    public static final String ACTION_CONFIG_CHANGE = "config-change";
+    public static final String CONFIG_DAY_NIGHT_MODE = "day-night-mode";
+
     @Override
     public void onMessageReceived(MessageEvent messageEvent) {
         if (!EIGHTBIT_WATCH_FACE_CONFIG_PATH.equals(messageEvent.getPath())) {
@@ -19,25 +24,17 @@ public class EightBitWatchFaceConfigListener
         }
 
         DataMap configChanges = DataMap.fromByteArray(messageEvent.getData());
-        // TODO: I'm not making these into constants because really, these configuration items will
-        // be handled by the watch face service, not here.
-        if (configChanges.containsKey("day-night-mode")) {
-            String newMode;
-            switch (configChanges.getInt("day-night-mode")) {
-                case 0:
-                    newMode = "day mode";
-                    break;
-                case 1:
-                    newMode = "night mode";
-                    break;
-                case 2:
-                    newMode = "auto mode";
-                    break;
-                default:
-                    newMode = "unknown";
-            }
 
-            Log.d(LOG_TAG, "Switching to " + newMode);
+        boolean addedAnyKeys = false;
+        Intent intent = new Intent(ACTION_CONFIG_CHANGE);
+
+        if (configChanges.containsKey(CONFIG_DAY_NIGHT_MODE)) {
+            intent.putExtra(CONFIG_DAY_NIGHT_MODE, configChanges.getInt(CONFIG_DAY_NIGHT_MODE));
+            addedAnyKeys = true;
+        }
+
+        if (addedAnyKeys) {
+            LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
         }
     }
 }

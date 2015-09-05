@@ -29,8 +29,10 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.Message;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
+import android.util.Log;
 import android.view.SurfaceHolder;
 
 import java.lang.ref.WeakReference;
@@ -38,6 +40,9 @@ import java.util.Calendar;
 import java.util.Random;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
+
+import static com.avikdas.eightbitwatch.EightBitWatchFaceConfigListener.ACTION_CONFIG_CHANGE;
+import static com.avikdas.eightbitwatch.EightBitWatchFaceConfigListener.CONFIG_DAY_NIGHT_MODE;
 
 public class EightBitWatchFace extends CanvasWatchFaceService {
     private static final long INTERACTIVE_UPDATE_RATE_MS = TimeUnit.SECONDS.toMillis(1);
@@ -66,6 +71,11 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
     }
 
     private class Engine extends CanvasWatchFaceService.Engine {
+        private static final String LOG_TAG = "CanvasWatchFaceEngine";
+
+        private final LocalBroadcastManager mBroadcastManager =
+                LocalBroadcastManager.getInstance(getApplicationContext());
+
         final Handler mUpdateTimeHandler = new EngineHandler(this);
 
         final BroadcastReceiver mTimeZoneReceiver = new BroadcastReceiver() {
@@ -76,6 +86,36 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
             }
         };
 
+        final BroadcastReceiver mConfigChangeReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                // TODO: remove unnecessary logging
+                if (intent.hasExtra(CONFIG_DAY_NIGHT_MODE)) {
+                    String newMode;
+                    switch (intent.getIntExtra(CONFIG_DAY_NIGHT_MODE, -1)) {
+                        case 0:
+                            newMode = "day mode";
+                            mDayNightMode = DayNightMode.DAY_MODE;
+                            break;
+                        case 1:
+                            newMode = "night mode";
+                            mDayNightMode = DayNightMode.NIGHT_MODE;
+                            break;
+                        case 2:
+                            newMode = "auto mode";
+                            mDayNightMode = DayNightMode.AUTO_MODE;
+                            break;
+                        default:
+                            newMode = "unknown";
+                            // don't change the mode
+                    }
+
+                    Log.d(LOG_TAG, "Switching to " + newMode);
+                    invalidate();
+                }
+            }
+        };
+
         boolean mRegisteredTimeZoneReceiver = false;
 
         boolean mAmbient;
@@ -83,6 +123,7 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
         Calendar mCalendar;
         Random mRandom = new Random();
         int mCurrentBackgroundIndex;
+        private DayNightMode mDayNightMode = DayNightMode.AUTO_MODE;
 
         // graphic objects
         Bitmap[] mBackgroundBitmapsDay;
@@ -126,6 +167,9 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
 
             // start off with a random background
             pickRandomBackground();
+
+            IntentFilter configChangeFilter = new IntentFilter(ACTION_CONFIG_CHANGE);
+            mBroadcastManager.registerReceiver(mConfigChangeReceiver, configChangeFilter);
         }
 
         private void loadBackgroundBitmaps(Resources resources) {
@@ -148,6 +192,7 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
         @Override
         public void onDestroy() {
             mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME);
+            mBroadcastManager.unregisterReceiver(mConfigChangeReceiver);
             super.onDestroy();
         }
 
@@ -266,12 +311,22 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
             }
         }
 
-        private void drawInteractiveMode(Canvas canvas, int width) {
-            int hour = mCalendar.get(Calendar.HOUR_OF_DAY);
+        private Bitmap[] getBackgroundScaledBitmapsArray() {
+            switch (mDayNightMode) {
+                case DAY_MODE:
+                    return mBackgroundScaledBitmapsDay;
+                case NIGHT_MODE:
+                    return mBackgroundScaledBitmapsNight;
+                case AUTO_MODE:
+                default:
+                    int hour = mCalendar.get(Calendar.HOUR_OF_DAY);
+                    boolean isDay = hour >= 6 && hour < 18;
+                    return isDay ? mBackgroundScaledBitmapsDay : mBackgroundScaledBitmapsNight;
+            }
+        }
 
-            boolean isDay = hour >= 6 && hour < 18;
-            Bitmap[] backgroundBitmapArray =
-                    isDay ? mBackgroundScaledBitmapsDay : mBackgroundScaledBitmapsNight;
+        private void drawInteractiveMode(Canvas canvas, int width) {
+            Bitmap[] backgroundBitmapArray = getBackgroundScaledBitmapsArray();
 
             canvas.drawBitmap(
                     backgroundBitmapArray[mCurrentBackgroundIndex],
@@ -449,5 +504,11 @@ public class EightBitWatchFace extends CanvasWatchFaceService {
                 }
             }
         }
+    }
+
+    private enum DayNightMode {
+        DAY_MODE,
+        NIGHT_MODE,
+        AUTO_MODE
     }
 }
